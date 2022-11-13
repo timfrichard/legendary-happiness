@@ -4,6 +4,8 @@ import com.giftedconcepts.validation.core.config.AbstractApplicationSystemIT;
 import com.giftedconcepts.validation.core.model.PurchaseOrder;
 import com.giftedconcepts.validation.core.model.PurchaseOrderLineItem;
 import com.google.common.collect.Lists;
+import org.hamcrest.Matchers;
+import org.hibernate.validator.internal.engine.ConstraintViolationImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -79,6 +86,14 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
     }
 
     @Test
+    void testValidationConstraint_allow_legal_violations() {
+        assertEquals(1,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A special character " + (char) 384)).size());
+    }
+
+    @Test
     void testValidationConstraint_violations_root_object() {
         PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard has loads of £££££.",
                 "This is a description. " + (char) 155 + " .",
@@ -88,7 +103,13 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
 
         Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
         assertNotNull(violations);
-        assertEquals(2, violations.size());
+        assertAll("assert all violation messages",
+                () -> assertThat(violations.size(), equalTo(2)),
+                () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
+                        is("Field description has special characters which failed validation.")))),
+                () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
+                        is("Field purchaserName has special characters which failed validation."))))
+        );
     }
 
     @Test
@@ -101,7 +122,24 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
 
         Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
         assertNotNull(violations);
-        assertEquals(1, violations.size());
+        assertAll("assert all violation messages",
+                () -> assertThat(violations.size(), equalTo(1)),
+                () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
+                        is("Field name has special characters which failed validation."))))
+        );
+    }
+
+    @Test
+    void testValidationConstraint_null_single_child_object() {
+        PurchaseOrder purchaseOrder = buildPurchaseOrder(null,
+                "This is a description.",
+                buildDepartment("Human Resources", null),
+                buildPurchaseOrderLineItems(true, 3,
+                        null, null));
+
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(0, violations.size());
     }
 
     @Test
@@ -117,7 +155,11 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
 
         Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
         assertNotNull(violations);
-        assertEquals(1, violations.size());
+        assertAll("assert all violation messages",
+                () -> assertThat(violations.size(), equalTo(1)),
+                () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
+                        is("Field itemDescription has special characters which failed validation."))))
+        );
     }
 
     @Test
@@ -133,6 +175,10 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
 
         Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
         assertNotNull(violations);
-        assertEquals(1, violations.size());
+        assertAll("assert all violation messages",
+                () -> assertThat(violations.size(), equalTo(1)),
+                () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
+                        is("Field identifiableField has special characters which failed validation."))))
+        );
     }
 }

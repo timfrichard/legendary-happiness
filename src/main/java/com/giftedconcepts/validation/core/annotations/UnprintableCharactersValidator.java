@@ -45,10 +45,13 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
                 /* We only care about String.class for this validation */
                 if(field.getType().equals(String.class)){
                     /* There may be some fields that have legal implications and they should be marked by the Legal annotation */
-                    boolean isLegalField = isLegalOnly(field.getAnnotation(UnprintableCharactersAllowLegal.class));
+                    boolean isLegalField = isAnnotatedBy(field.getAnnotation(UnprintableCharactersAllowLegal.class));
+                    boolean isSkippableField = isAnnotatedBy(field.getAnnotation(UnprintableCharactersSkip.class));
                     log.info("Is this String marked as legal content {}", isLegalField);
                     boolean isValidCheck;
-                    if(isLegalField){
+                    if (isSkippableField){
+                        isValidCheck = true;
+                    } else if(isLegalField){
                         isValidCheck = handleLegalValidation(field, context, object);
                     } else {
                         isValidCheck = handleBaseValidation(field, context, object);
@@ -88,15 +91,17 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
         String stringValue = (String)field.get(object);
         log.info("Legal Content - Field Name {} Field Value {}.", field.getName(), stringValue);
 
-        for(int i = 0; i < stringValue.length(); ++i){
-            char c = stringValue.charAt(i);
-            if(!(c >= ' ' && c < 127) && !allowedLegalCharacters.contains(c)){
-                String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
-                log.info(failureMessage);
-                /* ignore the noise from IntelliJ about this always being false yes it is if the code makes it here. */
-                isValid = isValid && false;
-                log.debug("Invalid character {}", c);
-                createInvalidMessage(field, constraintValidatorContext, failureMessage);
+        if(stringValue != null){
+            for(int i = 0; i < stringValue.length(); ++i){
+                char c = stringValue.charAt(i);
+                if(!(c >= ' ' && c < 127) && !allowedLegalCharacters.contains(c)){
+                    String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
+                    log.info(failureMessage);
+                    /* ignore the noise from IntelliJ about this always being false yes it is if the code makes it here. */
+                    isValid = isValid && false;
+                    log.debug("Invalid character {}", c);
+                    createInvalidMessage(field, constraintValidatorContext, failureMessage);
+                }
             }
         }
 
@@ -128,9 +133,9 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
         return isValid;
     }
 
-    private boolean isLegalOnly(final Annotation annotation) {
-        boolean isLegalField = annotation != null;
+    private boolean isAnnotatedBy(final Annotation annotation) {
+        boolean isAnnotatedField = annotation != null;
 
-        return isLegalField;
+        return isAnnotatedField;
     }
 }
