@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @NoArgsConstructor
 @Setter
-@UnprintableCharacters
+@UnprintableCharacters()
 public class Department {
 
     private Long departmentId;

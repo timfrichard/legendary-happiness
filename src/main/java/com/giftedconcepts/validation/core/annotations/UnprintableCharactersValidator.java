@@ -2,24 +2,31 @@ package com.giftedconcepts.validation.core.annotations;
 
 import com.giftedconcepts.validation.core.config.ApplicationProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.List;
 
 @Slf4j
 public class UnprintableCharactersValidator implements ConstraintValidator<UnprintableCharacters, Object> {
 
     private static final String REGEX_ANY_CHARACTER = "(.*)";
     public static final String FIELD_HAS_FAILED_VALIDATION = "Field %s has special characters which failed validation.";
+
+    private String identifierField;
     @Autowired
     private ApplicationProperties applicationProperties;
+    @Autowired
+    private List<Character> allowedLegalCharacters;
 
     @Override
     public void initialize(UnprintableCharacters constraintAnnotation) {
         ConstraintValidator.super.initialize(constraintAnnotation);
+        identifierField = constraintAnnotation.identifierField();
     }
 
     @Override
@@ -40,16 +47,57 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
                     /* There may be some fields that have legal implications and they should be marked by the Legal annotation */
                     boolean isLegalField = isLegalOnly(field.getAnnotation(UnprintableCharactersAllowLegal.class));
                     log.info("Is this String marked as legal content {}", isLegalField);
+                    boolean isValidCheck;
                     if(isLegalField){
-
+                        isValidCheck = handleLegalValidation(field, context, object);
                     } else {
-                        isValid = isValid && handleBaseValidation(field, context, object);
+                        isValidCheck = handleBaseValidation(field, context, object);
                     }
+                    isValid = isValidCheck && isValid;
                 }
             }
         } catch (Exception e) {
             log.error(e.getMessage());
             isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private static void createInvalidMessage(final Field field,
+                                             final ConstraintValidatorContext constraintValidatorContext,
+                                             final String failureMessage) {
+
+        String declaringClass = StringUtils.substringAfterLast(String.valueOf(field.getDeclaringClass()), ".");
+        constraintValidatorContext.disableDefaultConstraintViolation();
+        constraintValidatorContext.buildConstraintViolationWithTemplate(failureMessage)
+                .addPropertyNode(declaringClass + "." + field.getName()).addConstraintViolation();
+    }
+
+    /**
+     *
+     * @param field   String.class Field in which the validation should be performed
+     * @param constraintValidatorContext The ConstraintValidatorContext will be needed if the field fails
+     * @param object The object for which the Annotation has been applied to.
+     * @return isValid boolean based on if the field passes validation or not.
+     * @throws IllegalAccessException
+     */
+    private boolean handleLegalValidation(final Field field, final ConstraintValidatorContext constraintValidatorContext,
+                                          final Object object) throws IllegalAccessException {
+        boolean isValid = true;
+        String stringValue = (String)field.get(object);
+        log.info("Legal Content - Field Name {} Field Value {}.", field.getName(), stringValue);
+
+        for(int i = 0; i < stringValue.length(); ++i){
+            char c = stringValue.charAt(i);
+            if(!(c >= ' ' && c < 127) && !allowedLegalCharacters.contains(c)){
+                String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
+                log.info(failureMessage);
+                /* ignore the noise from IntelliJ about this always being false yes it is if the code makes it here. */
+                isValid = isValid && false;
+                log.debug("Invalid character {}", c);
+                createInvalidMessage(field, constraintValidatorContext, failureMessage);
+            }
         }
 
         return isValid;
@@ -68,24 +116,20 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
         boolean isValid = true;
         String stringValue = (String)field.get(object);
         log.info("Field Name {} Field Value {}.", field.getName(), stringValue);
-        if(stringValue.matches(REGEX_ANY_CHARACTER + applicationProperties.getUnprintableRegex() + REGEX_ANY_CHARACTER)){
+        if(stringValue != null &&
+                stringValue.matches(REGEX_ANY_CHARACTER + applicationProperties.getUnprintableRegex()
+                        + REGEX_ANY_CHARACTER)){
             String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
             log.info(failureMessage);
             isValid = false;
-            constraintValidatorContext.disableDefaultConstraintViolation();
-            constraintValidatorContext.buildConstraintViolationWithTemplate(failureMessage)
-                    .addPropertyNode(field.getName()).addConstraintViolation();
+            createInvalidMessage(field, constraintValidatorContext, failureMessage);
         }
 
         return isValid;
     }
 
     private boolean isLegalOnly(final Annotation annotation) {
-        boolean isLegalField = false;
-
-        if(annotation != null){
-            isLegalField = true;
-        }
+        boolean isLegalField = annotation != null;
 
         return isLegalField;
     }

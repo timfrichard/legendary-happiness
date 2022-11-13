@@ -1,7 +1,6 @@
 package com.giftedconcepts.validation.core.annotations;
 
 import com.giftedconcepts.validation.core.config.AbstractApplicationSystemIT;
-import com.giftedconcepts.validation.core.model.Department;
 import com.giftedconcepts.validation.core.model.PurchaseOrder;
 import com.giftedconcepts.validation.core.model.PurchaseOrderLineItem;
 import com.google.common.collect.Lists;
@@ -11,10 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ValidatorFactory;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
 
@@ -22,46 +23,116 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
     private ValidatorFactory validator;
 
     @BeforeEach
-    public void initialize(){
+    public void initialize() {
 
-//        factory = Validation.byDefaultProvider().configure().buildValidatorFactory();
+        random = new Random();
     }
 
     @Test
-    public void testGetCurrentStatusAdminChanged() {
+    void testValidationConstraint_no_violations() {
 
-        PurchaseOrder purchaseOrder = new PurchaseOrder();
-        purchaseOrder.setPurchaserName("Tim Richard loads of £££££ in");
-        purchaseOrder.setDescription("This is a test description.");
-        purchaseOrder.setDepartment(buildDepartment());
-        purchaseOrder.setPurchaseOrderLineItems(buildPurchaseOrderLineItems(purchaseOrder));
-        purchaseOrder.setSubmitDate(LocalDate.now());
+        //"Tim Richard loads of £££££ in"
+        PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard",
+                "This is a test description.",
+                buildDepartment("Information Technology", "This is my legal statement."),
+                buildPurchaseOrderLineItems(true, 3,
+                        null, null));
 
-        Set<ConstraintViolation<Object>> violations = validator.getValidator().validate(purchaseOrder);
-        System.out.println("Test");
-
-//        Assertions.assertNotNull(currentStatus);
-//        Assertions.assertTrue(currentStatus.getStatus().getStatusDescriptor().equals(StatusEnum.MTL_APPROVED));
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(0, violations.size());
     }
 
-    private Department buildDepartment() {
+    @Test
+    void testValidationConstraint_allow_legal_no_violations() {
 
-        return Department.builder().departmentId(1L).floor(21).name("Information Technology")
-                .departmentLegalStatement("This is my legal statement.").build();
+        /* allow bullet */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A bullet " + (char) 149)).size());
+        /* allow bullet_2 */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A bullet_2 " + (char) 8226)).size());
+        /* allow carriage return */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A carriage return " + (char) 13)).size());
+        /* allow line feed */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A line feed " + (char) 10)).size());
+        /* allow section */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A section " + (char) 167)).size());
+        /* allow paragraph */
+        assertEquals(0,
+                validator.getValidator()
+                        .validate(buildDepartment("DepartmentName",
+                                "A bullet " + (char) 182)).size());
     }
 
-    private List<PurchaseOrderLineItem> buildPurchaseOrderLineItems(final PurchaseOrder purchaseOrder) {
+    @Test
+    void testValidationConstraint_violations_root_object() {
+        PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard has loads of £££££.",
+                "This is a description. " + (char) 155 + " .",
+                buildDepartment("Information Technology", "This is my legal statement."),
+                buildPurchaseOrderLineItems(true, 3,
+                        null, null));
 
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(2, violations.size());
+    }
+
+    @Test
+    void testValidationConstraint_violations_single_child_object() {
+        PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard",
+                "This is a description.",
+                buildDepartment("20�s", "This is my legal statement."),
+                buildPurchaseOrderLineItems(true, 3,
+                        null, null));
+
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
+    }
+
+    @Test
+    void testValidationConstraint_violations_set_of_child_objects() {
         List<PurchaseOrderLineItem> purchaseOrderLineItems = Lists.newArrayList();
-        purchaseOrderLineItems.add(PurchaseOrderLineItem.builder().purchaseOrder(purchaseOrder)
-                .purchaseOrderLineItemId(1L).itemDescription("Description of Item loads of £££££ in").total(BigDecimal.valueOf(100))
-                .quantity(10).unitPrice(BigDecimal.valueOf(10)).build());
-        purchaseOrderLineItems.add(PurchaseOrderLineItem.builder().purchaseOrder(purchaseOrder)
-                .purchaseOrderLineItemId(2L)
-                .itemDescription("Description with special characters loads of £££££ in 20�s")
-                .total(BigDecimal.valueOf(50))
-                .quantity(2).unitPrice(BigDecimal.valueOf(25)).build());
-        //$$$$A trip to the store with loads of £££££ in 20�s.
-        return purchaseOrderLineItems;
+        PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard",
+                "This is a description.",
+                buildDepartment("Sports Department", "This is my legal statement."),
+                buildPurchaseOrderLineItems(false, 0,
+                        purchaseOrderLineItems, buildPurchaseOrderLineItem(random.nextInt(51),
+                                getUnitPrice(), "Bad description " + (char) 234 + ".",
+                                "This is my identity.")));
+
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
+    }
+
+    @Test
+    void testValidationConstraint_violations_set_of_child_objects_II() {
+        List<PurchaseOrderLineItem> purchaseOrderLineItems = Lists.newArrayList();
+        PurchaseOrder purchaseOrder = buildPurchaseOrder("Timmy Richard",
+                "This is a description.",
+                buildDepartment("Sports Department", "This is my legal statement."),
+                buildPurchaseOrderLineItems(false, 0,
+                        purchaseOrderLineItems, buildPurchaseOrderLineItem(random.nextInt(51),
+                                getUnitPrice(), "Good description.",
+                                "This is my identity " + (char) 234 + ".")));
+
+        Set<ConstraintViolation<PurchaseOrder>> violations = validator.getValidator().validate(purchaseOrder);
+        assertNotNull(violations);
+        assertEquals(1, violations.size());
     }
 }

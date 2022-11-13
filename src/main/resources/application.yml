@@ -3,11 +3,11 @@ com:
     validate:
       annotation:
         unprintableRegex: "\\P{Print}"
-        legalValidation:
-          - "(char) 149"
-          - "(char) 8226"
-          - "(char) 13"
-          - "(char) 10"
-          - "(char) 167"
-          - "(char) 182"
+        allowedLegalValidationCharacters:
+          - "149"
+          - "8226"
+          - "13"
+          - "10"
+          - "167"
+          - "182"
 #       BULLET BULLET_2 CR LF SECTION PARAGRAPH

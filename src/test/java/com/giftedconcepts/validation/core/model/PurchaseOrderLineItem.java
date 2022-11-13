@@ -14,12 +14,12 @@ import java.math.BigDecimal;
 @Getter
 @NoArgsConstructor
 @Setter
-@UnprintableCharacters
+@UnprintableCharacters(identifierField = "identifiableField")
 public class PurchaseOrderLineItem {
 
-    private String itemDescription;
+    private String identifiableField;
 
-    private PurchaseOrder purchaseOrder;
+    private String itemDescription;
 
     private Long purchaseOrderLineItemId;
 

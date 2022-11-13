@@ -14,6 +14,6 @@ import org.springframework.stereotype.Component;
 public class ApplicationProperties {
 
     private String unprintableRegex;
-    private String[] legalValidation;
+    private int[] allowedLegalValidationCharacters;
 
 }
