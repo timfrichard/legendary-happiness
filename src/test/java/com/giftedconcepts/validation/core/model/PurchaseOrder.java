@@ -1,6 +1,7 @@
 package com.giftedconcepts.validation.core.model;
 
 import com.giftedconcepts.validation.core.annotations.UnprintableCharacters;
+import com.giftedconcepts.validation.core.annotations.UnprintableCharactersSkip;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,6 +33,9 @@ public class PurchaseOrder {
     private String purchaserName;
 
     private List<@Valid PurchaseOrderLineItem> purchaseOrderLineItems;
+
+    @UnprintableCharactersSkip
+    private String skipMyField;
 
     @NotNull(message = "Submit date is required for a purchase order.")
     private LocalDate submitDate;

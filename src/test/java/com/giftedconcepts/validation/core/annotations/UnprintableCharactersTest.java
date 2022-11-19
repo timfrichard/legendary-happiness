@@ -106,9 +106,9 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
         assertAll("assert all violation messages",
                 () -> assertThat(violations.size(), equalTo(2)),
                 () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
-                        is("Field description has special characters which failed validation.")))),
+                        is("Field PurchaseOrder.description has special characters which failed validation.")))),
                 () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
-                        is("Field purchaserName has special characters which failed validation."))))
+                        is("Field PurchaseOrder.purchaserName has special characters which failed validation."))))
         );
     }
 
@@ -125,7 +125,7 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
         assertAll("assert all violation messages",
                 () -> assertThat(violations.size(), equalTo(1)),
                 () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
-                        is("Field name has special characters which failed validation."))))
+                        is("Field Department.name has special characters which failed validation."))))
         );
     }
 
@@ -158,7 +158,8 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
         assertAll("assert all violation messages",
                 () -> assertThat(violations.size(), equalTo(1)),
                 () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
-                        is("Field itemDescription has special characters which failed validation."))))
+                        is("Field PurchaseOrderLineItem.itemDescription has special characters which failed validation. " +
+                                "The identifying field value: This is my identity."))))
         );
     }
 
@@ -178,7 +179,8 @@ public class UnprintableCharactersTest extends AbstractApplicationSystemIT {
         assertAll("assert all violation messages",
                 () -> assertThat(violations.size(), equalTo(1)),
                 () -> assertThat(violations, hasItem(Matchers.<ConstraintViolationImpl<PurchaseOrder>>hasProperty("message",
-                        is("Field identifiableField has special characters which failed validation."))))
+                        is("Field PurchaseOrderLineItem.identifiableField has special characters which failed " +
+                                "validation. The identifying field value: This is my identity ê."))))
         );
     }
 }

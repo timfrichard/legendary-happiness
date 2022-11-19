@@ -15,7 +15,8 @@ import java.util.List;
 public class UnprintableCharactersValidator implements ConstraintValidator<UnprintableCharacters, Object> {
 
     private static final String REGEX_ANY_CHARACTER = "(.*)";
-    public static final String FIELD_HAS_FAILED_VALIDATION = "Field %s has special characters which failed validation.";
+    public static final String FIELD_HAS_FAILED_VALIDATION_MSG = "Field %s has special characters which failed validation.";
+    public static final String IDENTIFIER_FIELD_MSG = "The identifying field value: %s";
 
     private String identifierField;
     @Autowired
@@ -67,14 +68,31 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
         return isValid;
     }
 
-    private static void createInvalidMessage(final Field field,
-                                             final ConstraintValidatorContext constraintValidatorContext,
-                                             final String failureMessage) {
+    private void createInvalidMessage(final ConstraintValidatorContext constraintValidatorContext,
+                                      final String failureMessage, final String propertyNode, Object object)
+            throws NoSuchFieldException, IllegalAccessException {
+        String updatedFailureMsg = failureMessage;
+
+        if (!StringUtils.isBlank(identifierField)) {
+            /* Get Field which identifies what failed */
+            Field identifyingField = object.getClass().getDeclaredField(identifierField);
+            /* Set accessibility to true */
+            identifyingField.setAccessible(true);
+            /* This should be a string value */
+            String identifyingMessage = identifyingField.get(object).toString();
+
+            updatedFailureMsg = failureMessage + " " + String.format(IDENTIFIER_FIELD_MSG, identifyingMessage);
+        }
+
+        constraintValidatorContext.disableDefaultConstraintViolation();
+        constraintValidatorContext.buildConstraintViolationWithTemplate(updatedFailureMsg)
+                .addPropertyNode(propertyNode).addConstraintViolation();
+    }
+
+    private String createPropertyNode(final Field field) {
 
         String declaringClass = StringUtils.substringAfterLast(String.valueOf(field.getDeclaringClass()), ".");
-        constraintValidatorContext.disableDefaultConstraintViolation();
-        constraintValidatorContext.buildConstraintViolationWithTemplate(failureMessage)
-                .addPropertyNode(declaringClass + "." + field.getName()).addConstraintViolation();
+        return declaringClass + "." + field.getName();
     }
 
     /**
@@ -86,7 +104,7 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
      * @throws IllegalAccessException
      */
     private boolean handleLegalValidation(final Field field, final ConstraintValidatorContext constraintValidatorContext,
-                                          final Object object) throws IllegalAccessException {
+                                          final Object object) throws IllegalAccessException, NoSuchFieldException {
         boolean isValid = true;
         String stringValue = (String)field.get(object);
         log.info("Legal Content - Field Name {} Field Value {}.", field.getName(), stringValue);
@@ -95,12 +113,13 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
             for(int i = 0; i < stringValue.length(); ++i){
                 char c = stringValue.charAt(i);
                 if(!(c >= ' ' && c < 127) && !allowedLegalCharacters.contains(c)){
-                    String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
-                    log.info(failureMessage);
                     /* ignore the noise from IntelliJ about this always being false yes it is if the code makes it here. */
                     isValid = isValid && false;
                     log.debug("Invalid character {}", c);
-                    createInvalidMessage(field, constraintValidatorContext, failureMessage);
+                    String propertyNode = createPropertyNode(field);
+                    String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION_MSG, propertyNode);
+                    log.info(failureMessage);
+                    createInvalidMessage(constraintValidatorContext, failureMessage, propertyNode, object);
                 }
             }
         }
@@ -117,17 +136,18 @@ public class UnprintableCharactersValidator implements ConstraintValidator<Unpri
      * @throws IllegalAccessException
      */
     private boolean handleBaseValidation(final Field field, final ConstraintValidatorContext constraintValidatorContext,
-                                      final Object object) throws IllegalAccessException {
+                                      final Object object) throws IllegalAccessException, NoSuchFieldException {
         boolean isValid = true;
         String stringValue = (String)field.get(object);
         log.info("Field Name {} Field Value {}.", field.getName(), stringValue);
         if(stringValue != null &&
                 stringValue.matches(REGEX_ANY_CHARACTER + applicationProperties.getUnprintableRegex()
                         + REGEX_ANY_CHARACTER)){
-            String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION, field.getName());
-            log.info(failureMessage);
             isValid = false;
-            createInvalidMessage(field, constraintValidatorContext, failureMessage);
+            String propertyNode = createPropertyNode(field);
+            String failureMessage = String.format(FIELD_HAS_FAILED_VALIDATION_MSG, propertyNode);
+            log.info(failureMessage);
+            createInvalidMessage(constraintValidatorContext, failureMessage, propertyNode, object);
         }
 
         return isValid;

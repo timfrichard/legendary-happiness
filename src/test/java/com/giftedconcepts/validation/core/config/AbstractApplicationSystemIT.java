@@ -39,7 +39,7 @@ public abstract class AbstractApplicationSystemIT {
 
         return PurchaseOrder.builder().purchaserName(purchaserName)
                 .description(description).department(department).purchaseOrderLineItems(purchaseOrderLineItems)
-                .submitDate(LocalDate.now()).build();
+                .submitDate(LocalDate.now()).skipMyField(RandomStringUtils.randomAlphanumeric(20)).build();
     }
 
     protected List<PurchaseOrderLineItem> buildPurchaseOrderLineItems(final boolean initialize,
