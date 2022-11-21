@@ -14,7 +14,8 @@ import java.math.BigDecimal;
 @Getter
 @NoArgsConstructor
 @Setter
-@UnprintableCharacters(identifierField = "identifiableField")
+@UnprintableCharacters(identifierFields = {"identifiableField"},
+        identifierFieldsMessage = "The identifying field value: %s")
 public class PurchaseOrderLineItem {
 
     private String identifiableField;
@@ -23,7 +24,7 @@ public class PurchaseOrderLineItem {
 
     private Long purchaseOrderLineItemId;
 
-    private Integer quantity;
+    private int quantity;
 
     private BigDecimal total;
 
